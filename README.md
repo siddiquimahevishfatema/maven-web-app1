@@ -1,172 +1,210 @@
-# Java Web Application Deployment on AWS EKS via Jenkins CI/CD Pipeline
+# Automated Java Web App CI/CD Pipeline on AWS EKS
 
-An end-to-end continuous integration and continuous deployment (CI/CD) pipeline that automates the build, containerization, and deployment of a Java Maven web application onto a managed Amazon EKS (Kubernetes) cluster.
+This repository contains the end-to-end continuous integration and continuous deployment (CI/CD) pipeline for containerizing and deploying a Java-based web application to Amazon Elastic Kubernetes Service (AWS EKS).
 
 ---
 
-## 🏗️ Architecture Overview
+## 🏗️ Architecture & Deployment Flow
 
-[ Developer / GitHub ]
-│
-▼ (Webhook / Manual Trigger)
-[ Jenkins Server (AWS EC2) ]
-│ ──▶ 1. Clone Code
-│ ──▶ 2. Maven Build (.war)
-│ ──▶ 3. Docker Build & Tag
-│
-├───▶ Push Image ────▶ [ Docker Hub Registry ]
-│                                 │
-└───▶ kubectl apply ─────────────┼──────┐
-│      │ Pull Image
-▼      ▼
-[ AWS EKS Cluster ]
+[ Developer Push ] ➡️ [ GitHub ]
 │
 ▼
-[ AWS LoadBalancer ]
+[ Jenkins CI/CD ]
+│
+┌───────────────┴───────────────┐
+▼                               ▼
+(1) Maven Build                 (2) Docker Build & Push
+│                               │
+└───────────────┬───────────────┘
+▼
+[ Docker Hub Registry ]
 │
 ▼
-[ End User ]
+[ AWS EKS Cluster Deployment ]
+│
+▼
+[ User Access via LoadBalancer ]
 
 
 ---
 
-## 🛠️ Tech Stack & Prerequisites
+## 🧰 Prerequisites & Tech Stack
 
-* **Cloud Provider:** AWS (EC2, EKS, IAM, Elastic Load Balancer)
-* **CI/CD Tool:** Jenkins
-* **Containerization:** Docker & Docker Hub
-* **Orchestration:** Kubernetes (`kubectl`, `eksctl`)
-* **Build Tool:** Apache Maven
-* **Source Code Management:** Git & GitHub
-* **OS:** Ubuntu 22.04 LTS
+* **Cloud Provider:** Amazon Web Services (AWS EC2, EKS, IAM, VPC)
+* **Build Tool:** Apache Maven 3.x, OpenJDK 17 / 21
+* **Containerization:** Docker & Docker Hub (`mahevish07/maven-web-app`)
+* **Orchestration:** Kubernetes (`kubectl`), AWS `eksctl`
+* **CI/CD Automation:** Jenkins Server
+* **Version Control:** Git & GitHub (`siddiquimahevishfatema/maven-web-app1`)
 
 ---
 
-## 🚀 Step-by-Step Implementation Guide
+## 📁 Repository Structure
 
-### Step 1: Provision EKS Management Host
-1. Launch an Ubuntu EC2 Instance (`t3.small` recommended; minimum 2GB RAM).
-2. Install `kubectl`, `awscli`, and `eksctl`:
-   ```bash
-   # Install kubectl
-   curl -O [https://s3.us-west-2.amazonaws.com/amazon-eks/1.30.0/2024-05-12/bin/linux/amd64/kubectl](https://s3.us-west-2.amazonaws.com/amazon-eks/1.30.0/2024-05-12/bin/linux/amd64/kubectl)
-   chmod +x ./kubectl && sudo mv ./kubectl /usr/local/bin
+```text
+├── src/                        # Java Application Source Code
+├── pom.xml                     # Maven Dependency & Build Config
+├── Dockerfile                  # Web App Containerization Specification
+├── k8s-deploy.yml              # Kubernetes Deployment & LoadBalancer Service Manifests
+├── Jenkinsfile                 # Jenkins Declarative CI/CD Pipeline
+└── README.md                   # Technical Documentation
+🚀 Step-by-Step Implementation Guide
+Step 1: Provision EKS Management Host (EC2)
+Launch an Ubuntu VM (t2.micro) on AWS and install management tools (kubectl, aws-cli, eksctl):
 
-   # Install AWS CLI v2
-   sudo apt update && sudo apt install -y unzip
-   curl "[https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip](https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip)" -o "awscliv2.zip"
-   unzip awscliv2.zip && sudo ./aws/install
+Bash
+# Install kubectl
+curl -o kubectl [https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl](https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl)
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin
 
-   # Install eksctl
-   curl --silent --location "[https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname](https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname) -s)_amd64.tar.gz" | tar xz -C /tmp
-   sudo mv /tmp/eksctl /usr/local/bin
-Step 2: Configure IAM Roles
-Create an IAM Role named eksroleec2 with the AdministratorAccess policy (or scoped EKS/EC2 permissions).
+# Install AWS CLI v2
+sudo apt update && sudo apt install unzip -y
+curl "[https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip](https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip)" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
 
-Attach eksroleec2 to both the EKS Management Host and the Jenkins Server EC2 instances.
+# Install eksctl
+curl --silent --location "[https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname](https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname) -s)_amd64.tar.gz" | tar xz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
+Step 2: IAM Role Assignment
+Create an IAM Role named eksroleec2 with AdministratorAccess (for EC2 use case).
 
-Step 3: Create EKS Cluster
-Run the following command on the EKS Management Host:
+Attach eksroleec2 to both the EKS Management Host and the Jenkins Server via EC2 Security Settings.
+
+Step 3: Provision EKS Cluster
+Execute eksctl on the management host to create the node group and control plane:
 
 Bash
 eksctl create cluster \
   --name ashokit-cluster \
   --region us-east-1 \
-  --node-type t3.medium \
-  --nodes-min 2 \
-  --nodes-max 2 \
+  --node-type t2.medium \
   --zones us-east-1a,us-east-1b
-Verify cluster nodes:
 
-Bash
+# Verify node provisioning
 kubectl get nodes
-Step 4: Setup Jenkins Server
-Launch an Ubuntu EC2 Instance (t3.medium). Open ports 22 and 8080 in the Security Group.
-
-Install Java 17, Jenkins, and Docker:
+Step 4: Configure Jenkins & Build Engine
+Launch an Ubuntu VM (t2.medium), open port 8080 in security group, and execute:
 
 Bash
-# Install Java & Jenkins
-sudo apt update && sudo apt install -y openjdk-17-jre fontconfig
+# Install Java 17
+sudo apt update
+sudo apt install fontconfig openjdk-17-jre -y
+
+# Install Jenkins
 sudo wget -O /usr/share/keyrings/jenkins-keyring.asc [https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key](https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key)
-echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] [https://pkg.jenkins.io/debian-stable](https://pkg.jenkins.io/debian-stable) binary/" | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
-sudo apt-get update && sudo apt-get install -y jenkins
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] [https://pkg.jenkins.io/debian-stable](https://pkg.jenkins.io/debian-stable) binary/ | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo apt-get update
+sudo apt-get install jenkins -y
+sudo systemctl enable --now jenkins
 
 # Install Docker & Grant Permissions
-curl -fsSL get.docker.com | bash
+curl -fsSL get.docker.com | /bin/bash
 sudo usermod -aG docker jenkins
 sudo systemctl restart jenkins
-Install awscli and kubectl on the Jenkins server.
 
-Authenticate Jenkins with the EKS cluster:
+# Install AWS CLI & Kubectl on Jenkins Server
+sudo apt install unzip -y
+curl "[https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip](https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip)" -o "awscliv2.zip" && unzip awscliv2.zip && sudo ./aws/install
+curl -o kubectl [https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl](https://amazon-eks.s3.us-west-2.amazonaws.com/1.19.6/2021-01-05/bin/linux/amd64/kubectl) && chmod +x ./kubectl && sudo mv ./kubectl /usr/local/bin
+Step 5: Configure Jenkins Cluster Credentials
+Connect Jenkins to EKS cluster by setting up permissions and generating kubeconfig:
 
 Bash
-sudo -u jenkins aws eks update-kubeconfig --region us-east-1 --name ashokit-cluster
-Step 5: Jenkins Dashboard & Credentials Setup
-Access Jenkins at http://<JENKINS_PUBLIC_IP>:8080.
+# Update Kubeconfig for Jenkins
+sudo mkdir -p /var/lib/jenkins/.kube
+sudo aws eks update-kubeconfig --region us-east-1 --name ashokit-cluster --kubeconfig /var/lib/jenkins/.kube/config
 
-Install required plugins: Docker Pipeline, Kubernetes CLI, and Maven Integration.
+# Grant ownership to Jenkins service user
+sudo chown -R jenkins:jenkins /var/lib/jenkins/.kube
 
-Go to Manage Jenkins ➔ Tools ➔ Maven and add a Maven installation named maven.
+# Verify cluster connectivity as Jenkins user
+sudo su -s /bin/bash jenkins -c "kubectl get nodes"
+Step 6: CI/CD Pipeline Implementation
+In Jenkins, navigate to Manage Jenkins -> Tools -> Maven Installation and name your Maven installation "maven". Store Docker Hub credentials as docker-credentials in Jenkins Credentials Manager.
 
-Go to Manage Jenkins ➔ Credentials, create a Username with Password entry using your Docker Hub credentials, and set the ID to docker-credentials.
-
-⚙️ Jenkinsfile Pipeline Configuration
-Add this Jenkinsfile to your repository root or directly inside your Jenkins Pipeline job configuration:
+Create a Pipeline project pointing to this repository using the standard Jenkinsfile:
 
 Groovy
 pipeline {
     agent any
-    
+
     tools {
         maven "maven"
     }
 
     environment {
-        DOCKER_IMAGE = 'ashher05/maven-web-app'
-        IMAGE_TAG = "${BUILD_NUMBER}"
+        DOCKER_HUB_USER = 'mahevish07'
+        IMAGE_NAME      = 'maven-web-app'
+        IMAGE_TAG       = "${BUILD_NUMBER}"
     }
 
     stages {
         stage('Clone Repo') {
             steps {
-                git branch: 'main', url: '[https://github.com/Ashher05/maven-web-app.git](https://github.com/Ashher05/maven-web-app.git)'
+                git branch: 'main', url: '[https://github.com/siddiquimahevishfatema/maven-web-app1.git](https://github.com/siddiquimahevishfatema/maven-web-app1.git)'
             }
         }
-        
+
         stage('Maven Build') {
             steps {
                 sh 'mvn clean package'
-            } 
-        } 
-        
-        stage('Docker Build & Push') {
+            }
+        }
+
+        stage('Docker Build & Tag') {
             steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'docker-credentials', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                        sh 'docker build -t $DOCKER_IMAGE:$IMAGE_TAG -t$DOCKER_IMAGE:latest .'
-                        sh 'echo $PASS \vert{} docker login -u$USER --password-stdin'
-                        sh 'docker push $DOCKER_IMAGE:$IMAGE_TAG'
-                        sh 'docker push $DOCKER_IMAGE:latest'
-                    }
+                sh "docker build -t ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                sh "docker tag ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest"
+            }
+        }
+
+        stage('Docker Registry Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS \vert{} docker login -u$DOCKER_USER --password-stdin'
+                    sh "docker push ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                    sh "docker push ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest"
                 }
             }
         }
 
-        stage('Deploy to EKS') {
+        stage('Kubernetes EKS Deploy') {
             steps {
                 sh 'kubectl apply -f k8s-deploy.yml'
-                sh 'kubectl rollout restart deployment/maven-web-app'
+                sh 'kubectl rollout restart deployment/maven-web-app-deployment'
             }
         }
-    } 
+    }
+
+    post {
+        always {
+            sh 'docker logout'
+        }
+    }
 }
-🌐 Verifying Application Access
-After a successful pipeline run, obtain the external LoadBalancer domain name from EKS:
+🌐 Application Verification & Teardown
+Verify Live Service
+Retrieve the LoadBalancer endpoint created by EKS:
 
 Bash
-kubectl get svc
-Locate the EXTERNAL-IP associated with your deployment service.
+kubectl get service
+Access your application via browser:
+http://<EXTERNAL-LB-DNS-NAME>/maven-web-app/
 
-Access your live application in your browser:
-http://<EXTERNAL-IP>:8080/maven-web-app
+Clean Up Resources
+To prevent unnecessary AWS charges, tear down the cluster once finished:
+
+Bash
+eksctl delete cluster --name ashokit-cluster --region us-east-1
+
+---
+
+<ElicitationsGroup message="Next actions for your updated repository:">
+
+<Elicitation label="Draft updated LinkedIn post text" query="Draft a compelling LinkedIn post to announce this project using my updated GitHub repo link [https://github.com/siddiquimahevishfatema/maven-web-app1.git](https://github.com/siddiquimahevishfatema/maven-web-app1.git) and Docker Hub handle mahevish07."/>
+
+<Elicitation label="Update k8s-deploy.yml image reference" query="Provide an updated k8s-deploy.yml manifest that points directly to image mahevish07/maven-web-app:latest."/>
+
+</ElicitationsGroup>
