@@ -201,10 +201,4 @@ eksctl delete cluster --name ashokit-cluster --region us-east-1
 
 ---
 
-<ElicitationsGroup message="Next actions for your updated repository:">
 
-<Elicitation label="Draft updated LinkedIn post text" query="Draft a compelling LinkedIn post to announce this project using my updated GitHub repo link [https://github.com/siddiquimahevishfatema/maven-web-app1.git](https://github.com/siddiquimahevishfatema/maven-web-app1.git) and Docker Hub handle mahevish07."/>
-
-<Elicitation label="Update k8s-deploy.yml image reference" query="Provide an updated k8s-deploy.yml manifest that points directly to image mahevish07/maven-web-app:latest."/>
-
-</ElicitationsGroup>
