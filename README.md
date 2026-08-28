@@ -170,3 +170,22 @@ Locate the EXTERNAL-IP associated with your deployment service.
 
 Access your live application in your browser:
 http://<EXTERNAL-IP>:8080/maven-web-app
+
+
+
+
+
+
+## 📸 Deployment Proof
+### EKS Cluster Status
+![EKS Cluster Status](img5.png)
+
+
+### Jenkins Pipeline Execution
+![Jenkins Pipeline Execution](img6.png)
+
+
+### Live Application Output
+![Live Application Output](img7.png)
+
+
