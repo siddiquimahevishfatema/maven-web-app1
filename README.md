@@ -191,7 +191,7 @@ Retrieve the LoadBalancer endpoint created by EKS:
 Bash
 kubectl get service
 Access your application via browser:
-http://<EXTERNAL-LB-DNS-NAME>/maven-web-app/
+http://<EXTERNAL-LB-DNS-NAME>/maven-app/
 
 Clean Up Resources
 To prevent unnecessary AWS charges, tear down the cluster once finished:
