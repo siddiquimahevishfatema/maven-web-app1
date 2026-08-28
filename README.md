@@ -207,13 +207,13 @@ eksctl delete cluster --name ashokit-cluster --region us-east-1
 ## 📸 Deployment Proof
 
 ### EKS Cluster Status
-<img src="https://github.com/user-attachments/assets/9b8dae2e-241a-4fe8-b399-34cee05bf05d" width="100%" alt="EKS Cluster Status" />
+![EKS Cluster Status](https://github.com/user-attachments/assets/9b8dae2e-241a-4fe8-b399-34cee05bf05d)
 
 ### Jenkins Pipeline Execution
-<img src="https://github.com/user-attachments/assets/013414c8-9876-4ca4-933d-33e7f63373dc" width="100%" alt="Jenkins Pipeline Execution" />
+![Jenkins Pipeline Execution](https://github.com/user-attachments/assets/013414c8-9876-4ca4-933d-33e7f63373dc)
 
 ### Live Application Output
-<img src="https://github.com/user-attachments/assets/507b43c4-a32c-4fbe-93fc-f9d2810a4bac" width="100%" alt="Live Application Output" />
+![Live Application Output](https://github.com/user-attachments/assets/507b43c4-a32c-4fbe-93fc-f9d2810a4bac)
 
 
 
