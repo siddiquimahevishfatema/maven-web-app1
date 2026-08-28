@@ -2,13 +2,13 @@ pipeline {
     agent any
     
     tools{
-        maven "Maven-3.9.9"
+        maven "maven"
     }
 
     stages {
         stage('Clone Repo') {
             steps {
-                git 'https://github.com/ashokitschool/maven-web-app.git'
+                git 'https://github.com/siddiquimahevishfatema/maven-web-app1.git'
             }
         }
         stage('Maven Build') {
@@ -18,7 +18,7 @@ pipeline {
         }
         stage('Docker Image') {
             steps {
-                sh 'docker build -t ashokit/mavenwebapp .'
+                sh 'docker build -t mahevish07/maven-web-app .'
             }
         }
         stage('k8s deployment') {
