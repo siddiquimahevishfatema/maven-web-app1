@@ -1,29 +1,29 @@
 pipeline {
     agent any
     
-    tools{
-        maven 'Maven-3.9.9'
+    tools {
+        maven "maven"
     }
     stages {
-        stage('clone') {
+        stage('Clone Repo') {
             steps {
-              git 'https://github.com/ashokitschool/maven-web-app.git'
+              git branch: 'main', changelog: false, credentialsId: 'Git-Credentials', poll: false, url: 'https://github.com/siddiquimahevishfatema/maven-web-app'
             }
         }
-        stage('build'){
-            steps{
-                 sh 'mvn clean package'
-            }
-        }
-        stage('docker image'){
+        stage('Maven Build') {
             steps {
-                sh 'docker build -t ashokit/mavenwebapp .'
+                sh 'mvn clean package'
+            } 
+        } 
+        stage('Docker Image') {
+            steps {
+                sh 'docker build -t mahevish07/maven-web-app .'
             }
         }
-        stage('k8s deploy'){
-            steps{
-               sh 'kubectl apply -f k8s-deploy.yml'
+        stage('k8s deployment') {
+            steps {
+                sh 'kubectl apply -f k8s-deploy.yml'
             }
         }
-    }
+    } 
 }
